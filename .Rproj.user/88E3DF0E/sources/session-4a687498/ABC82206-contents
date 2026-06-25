@@ -198,8 +198,6 @@ summary_table_data |>
   )
 ```
 
-This table compares customer behavior across regions using both exact summary statistics and small visual charts. It is useful because it shows which regions have higher monthly spending, higher churn rates, and different spending distributions.
-
 # 3. Explain why the table is worth adding to your MSDM project written report or presentation slides.
 The table is worth adding because it clearly combines exact summary statistics and small visual charts, making group comparisons easier to understand in an MSDM report or presentation.
 
