@@ -1,0 +1,207 @@
+---
+title: "W03 - Customizable Tables"
+author: "Frank Renn"
+date: today
+format: 
+  html: 
+    toc: true
+    toc-depth: 4
+    number-sections: false
+    code-link: true
+    embed-resources: true
+    output-file: "index.html"
+editor: visual
+execute: 
+  freeze: auto
+  message: false
+  warning: false
+---
+# 1. Write a short essay on the following:
+
+## 1.1 Summarize what you learned from the videos you watched.
+
+I learned that tables can be used as a powerful form of data visualization when they are designed clearly and intentionally. The videos showed how a basic data frame can be transformed into a polished table with titles, labels, formatting, notes, and visual elements that make the information easier to understand.
+
+## 1.2 What did you like about the `gt` and `gtExtras` packages demonstrated in the videos?
+
+I liked that the `gt` package makes it easy to create professional-looking tables directly from R data frames. I also liked that `gtExtras` adds useful visual features, such as small charts inside table cells, which makes the table more informative and visually appealing.
+
+## 1.3 How do tables complement charts for data visualization?
+
+Tables complement charts because they provide exact numbers, while charts are better for showing overall patterns and trends. When used together, charts help the audience quickly see the main message, and tables provide the detailed evidence behind that message.
+
+## 1.4 Under what circumstances would you prefer to use tables rather than charts to visualize data?
+
+I would prefer to use tables when exact values are important or when I need to present several summary statistics at the same time. Tables are also useful when comparing a small number of groups because readers can easily look across rows and columns to find specific information.
+
+# 2. Use the synthetic data introduced this week for the lecture. Pick some variables of your interest from the data and share some descriptive statistics using gt and gtExtra functions together to show numbers and small charts in one table. In this table, incorporate the following at a minimum.
+
+```{r}
+
+# Load packages
+library(tidyverse)
+library(gt)
+library(gtExtras)
+
+# Create the synthetic customer marketing dataset from the lecture page
+set.seed(42)
+
+n <- 1000
+
+customer_data <- tibble(
+  customer_id = 1:n,
+  tenure = sample(1:60, n, replace = TRUE),
+  monthly_spend = round(rnorm(n, mean = 85, sd = 25), 2),
+  num_products = sample(
+    1:5,
+    n,
+    replace = TRUE,
+    prob = c(0.3, 0.3, 0.2, 0.1, 0.1)
+  ),
+  num_complaints = rpois(n, lambda = 0.5),
+  last_login_days = sample(1:90, n, replace = TRUE),
+  region = sample(c("West", "East", "South", "Midwest"), n, replace = TRUE),
+  churn = factor(
+    ifelse(
+      0.05 * num_complaints +
+        0.02 * last_login_days -
+        0.015 * tenure -
+        0.005 * monthly_spend +
+        rnorm(n, 0, 0.5) > 0.3,
+      "yes",
+      "no"
+    )
+  )
+)
+
+# Wrangle the data by grouping customers by region
+summary_table_data <- customer_data |>
+  group_by(region) |>
+  summarize(
+    sample_size = n(),
+    mean_tenure = mean(tenure, na.rm = TRUE),
+    mean_monthly_spend = mean(monthly_spend, na.rm = TRUE),
+    median_monthly_spend = median(monthly_spend, na.rm = TRUE),
+    mean_products = mean(num_products, na.rm = TRUE),
+    mean_complaints = mean(num_complaints, na.rm = TRUE),
+    churn_rate = mean(churn == "yes", na.rm = TRUE) * 100,
+    spend_distribution = list(monthly_spend),
+    .groups = "drop"
+  )
+
+# Create the gt table
+summary_table_data |>
+  gt(rowname_col = "region") |>
+
+  # Requirement 1: Add titles and subtitles to the table
+  tab_header(
+    title = md("**Customer Marketing Summary by Region**"),
+    subtitle = "Synthetic customer churn data summarized with gt and gtExtras"
+  ) |>
+
+  # Requirement 2: Give a label to the stub head
+  tab_stubhead(
+    label = "Region"
+  ) |>
+
+  # Requirement 3: Relabel variable names to make them easier to understand
+  cols_label(
+    sample_size = "Sample Size",
+    mean_tenure = "Mean Tenure",
+    mean_monthly_spend = "Mean Monthly Spend",
+    median_monthly_spend = "Median Monthly Spend",
+    mean_products = "Mean Products",
+    mean_complaints = "Mean Complaints",
+    churn_rate = "Churn Rate",
+    spend_distribution = "Monthly Spend Distribution"
+  ) |>
+
+  # Requirement 6: Add spanner column labels
+  tab_spanner(
+    label = "Customer Profile",
+    columns = c(sample_size, mean_tenure)
+  ) |>
+  tab_spanner(
+    label = "Spending Summary",
+    columns = c(mean_monthly_spend, median_monthly_spend, spend_distribution)
+  ) |>
+  tab_spanner(
+    label = "Behavior and Churn",
+    columns = c(mean_products, mean_complaints, churn_rate)
+  ) |>
+
+  # Requirement 7: Format numbers with 2 decimal points
+  fmt_number(
+    columns = c(mean_tenure, mean_products, mean_complaints),
+    decimals = 2
+  ) |>
+
+  # Requirement 7: Format currency values with dollar signs and 2 decimal points
+  fmt_currency(
+    columns = c(mean_monthly_spend, median_monthly_spend),
+    currency = "USD",
+    decimals = 2
+  ) |>
+
+  # Requirement 7: Format churn rate as a percentage value with 2 decimal points
+  fmt_number(
+    columns = churn_rate,
+    decimals = 2,
+    suffixing = FALSE
+  ) |>
+  cols_label(
+    churn_rate = "Churn Rate (%)"
+  ) |>
+
+  # Requirement 9: Use gtExtras to add a small chart inside the table
+  gt_plt_dist(
+    column = spend_distribution,
+    type = "boxplot",
+    same_limit = TRUE
+  ) |>
+
+  # Requirement 8: Color a numeric column
+  data_color(
+    columns = churn_rate,
+    palette = "Reds"
+  ) |>
+
+  # Requirement 5: Add footnotes
+  tab_footnote(
+    footnote = "Monthly spend is formatted as U.S. dollars and rounded to two decimal places.",
+    locations = cells_column_labels(
+      columns = c(mean_monthly_spend, median_monthly_spend)
+    )
+  ) |>
+  tab_footnote(
+    footnote = "The boxplot shows the distribution of individual customer monthly spending within each region.",
+    locations = cells_column_labels(columns = spend_distribution)
+  ) |>
+  tab_footnote(
+    footnote = "Churn rate is the percentage of customers in each region whose churn value is yes.",
+    locations = cells_column_labels(columns = churn_rate)
+  ) |>
+
+  # Requirement 4: Add source notes
+  tab_source_note(
+    source_note = "Source: Synthetic customer marketing/churn dataset from the Week 1 hands-on lecture."
+  ) |>
+  tab_source_note(
+    source_note = "Table created using gt and gtExtras in R."
+  ) |>
+
+  # Requirement 9: Use additional functions as needed to improve readability
+  opt_row_striping() |>
+  cols_align(
+    align = "center",
+    columns = c(sample_size, spend_distribution)
+  )
+```
+
+This table compares customer behavior across regions using both exact summary statistics and small visual charts. It is useful because it shows which regions have higher monthly spending, higher churn rates, and different spending distributions.
+
+# 3. Explain why the table is worth adding to your MSDM project written report or presentation slides.
+The table is worth adding because it clearly combines exact summary statistics and small visual charts, making group comparisons easier to understand in an MSDM report or presentation.
+
+# 4. Publish the QMD file to the GitHub Page and add the URL here under this section.
+Github Page: https://falasol.github.io/W03-3/
